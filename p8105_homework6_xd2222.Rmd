@@ -1,0 +1,88 @@
+---
+title: "p8105 homework 6"
+author: "Xintao Ding"
+date: "11/25/2019"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(modelr)
+set.seed(1)
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+
+## Problem 1
+```{r}
+birthweight <- read_csv("./data/birthweight.csv") %>%  #load data
+  mutate(babysex = as.factor(babysex), # convert numeric to factor
+         frace = as.factor(frace),
+         malform = as.factor(malform),
+         mrace = as.factor(mrace),
+         
+)
+colSums(is.na(birthweight))  # no missing value in the dataset
+
+
+# my own model 
+birthweight_fit <- lm(bwt ~ delwt + mheight + momage + delwt * mheight + delwt * momage + mheight * momage + delwt * momage * mheight, data = birthweight)
+#birthweight_fit <- lm(bwt ~ fincome + frace + mrace + smoken, data = birthweight)
+
+birthweight_fit %>% 
+  broom::glance()
+
+birthweight_fit %>% 
+  broom::tidy()
+
+birthweight %>% 
+  add_predictions(birthweight_fit) %>% 
+  add_residuals(birthweight_fit) %>% 
+  ggplot(aes(x = bwt, y = resid)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth()
+  labs ( x = "predicted birthweight", 
+         y = "residuals")
+
+
+```
+
+I wanted to look at main effectsof and interactions between mother's delivery weight altogether on baby's birthweight, mother's height and mother's age at delivery on baby's weight. 
+
+
+```{r}
+# 2 other models
+mod_1 <- lm(bwt ~ blength + gaweeks, data = birthweight)
+mod_2 <- lm(bwt ~ bhead + blength + babysex + bhead*blength + bhead* babysex + blength*babysex + bhead * blength * babysex, data = birthweight)
+
+# compare three models with cross-validation
+
+cv_df <- crossv_mc(birthweight, 100)
+cv_df <- cv_df %>% 
+  mutate(
+    birthweight_fit = map(train, ~lm(bwt ~ delwt + mheight + momage + delwt * mheight + delwt * momage + mheight * momage + delwt * momage * mheight, data = .x)),
+    mod_1 = map(train, ~lm(bwt ~ blength + gaweeks, data = .x)),
+    mod_2 = map(train, ~lm(bwt ~ bhead + blength + babysex + bhead*blength + bhead* babysex + blength*babysex + bhead * blength * babysex, data = .x))) %>% 
+  mutate(rmse_birthweight = map2_dbl(birthweight_fit, test,  ~rmse(model = .x, data = .y)),
+         rmse_mod1 = map2_dbl(mod_1, test, ~rmse(model = .x, data = .y)),
+         rmse_mod2 = map2_dbl(mod_2, test, ~rmse(model = .x, data = .y)))
+  
+
+cv_df %>% 
+  select(starts_with("rmse")) %>% 
+  pivot_longer(
+    everything(),
+    names_to = "model", 
+    values_to = "rmse",
+    names_prefix = "rmse_") %>% 
+  mutate(model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + geom_violin()
+
+
+```
+From the comparison we could see that my model has the highest prediction model, while mod2 that looks at bhead, blenght, babysex and their interactions has the lowest the prediction error. My model could take better advantage of the data and perhaps use stepwise to see what predictors matter the most to the predictions. 
+
+
+
