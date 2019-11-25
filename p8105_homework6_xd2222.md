@@ -131,3 +131,70 @@ prediction model, while mod2 that looks at bhead, blenght, babysex and
 their interactions has the lowest the prediction error. My model could
 take better advantage of the data and perhaps use stepwise to see what
 predictors matter the most to the predictions.
+
+## Problem 2
+
+``` r
+# load data
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+```
+
+    ## Registered S3 method overwritten by 'crul':
+    ##   method                 from
+    ##   as.character.form_file httr
+
+    ## Registered S3 method overwritten by 'hoardr':
+    ##   method           from
+    ##   print.cache_info httr
+
+    ## file path:          /Users/xintaoding/Library/Caches/rnoaa/ghcnd/USW00094728.dly
+
+    ## file last updated:  2019-09-26 10:25:09
+
+    ## file min/max dates: 1869-01-01 / 2019-09-30
+
+``` r
+# Bootstrapping
+
+weather_df %>% 
+  modelr::bootstrap(n = 5000) %>% 
+  mutate(models = map(strap, ~ lm(tmax ~ tmin, data = .x)),
+         results = map(models, broom::tidy)) %>% 
+  select(-strap, -models) %>% 
+  unnest(results) %>% 
+  group_by(.id) %>% 
+  summarize(log_coef = sum(log(estimate))) %>% 
+  ggplot(aes(x = log_coef)) + geom_density() +
+  labs(title = "Distribution of log(β^0 ∗ β^1")
+```
+
+![](p8105_homework6_xd2222_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+
+``` r
+weather_df %>% 
+  modelr::bootstrap(n = 5000) %>% 
+  mutate(models = map(strap, ~ lm(tmax ~ tmin, data = .x)),
+         results = map(models, broom::glance)) %>% 
+  select(-strap, -models) %>% 
+  unnest(results) %>% 
+  group_by(.id) %>% 
+  summarize(r_squared = unique(r.squared)) %>% 
+  ggplot(aes(x = r_squared)) + geom_density() +
+  labs(title = "Distribution of R^2")
+```
+
+![](p8105_homework6_xd2222_files/figure-gfm/unnamed-chunk-4-2.png)<!-- -->
+
+Both the distribution of r squared and log(β^0 ∗ β^1) sligntly
+left-skewed, with distribution of log(β^0 ∗ β^1) being more normally
+distributed

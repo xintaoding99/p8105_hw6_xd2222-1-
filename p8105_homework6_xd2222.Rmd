@@ -84,5 +84,50 @@ cv_df %>%
 ```
 From the comparison we could see that my model has the highest prediction model, while mod2 that looks at bhead, blenght, babysex and their interactions has the lowest the prediction error. My model could take better advantage of the data and perhaps use stepwise to see what predictors matter the most to the predictions. 
 
+## Problem 2
+
+```{r warning = FALSE}
+# load data
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+
+```
+
+```{r warning = FALSE}
+# Bootstrapping
+
+weather_df %>% 
+  modelr::bootstrap(n = 5000) %>% 
+  mutate(models = map(strap, ~ lm(tmax ~ tmin, data = .x)),
+         results = map(models, broom::tidy)) %>% 
+  select(-strap, -models) %>% 
+  unnest(results) %>% 
+  group_by(.id) %>% 
+  summarize(log_coef = sum(log(estimate))) %>% 
+  ggplot(aes(x = log_coef)) + geom_density() +
+  labs(title = "Distribution of log(β^0 ∗ β^1")
+      
+weather_df %>% 
+  modelr::bootstrap(n = 5000) %>% 
+  mutate(models = map(strap, ~ lm(tmax ~ tmin, data = .x)),
+         results = map(models, broom::glance)) %>% 
+  select(-strap, -models) %>% 
+  unnest(results) %>% 
+  group_by(.id) %>% 
+  summarize(r_squared = unique(r.squared)) %>% 
+  ggplot(aes(x = r_squared)) + geom_density() +
+  labs(title = "Distribution of R^2")
+
+```
 
 
+Both the distribution of r squared and log(β^0 ∗ β^1) sligntly left-skewed, with distribution of log(β^0 ∗ β^1) being more normally distributed
