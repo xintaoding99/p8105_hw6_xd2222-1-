@@ -175,7 +175,7 @@ weather_df %>%
   group_by(.id) %>% 
   summarize(log_coef = sum(log(estimate))) %>% 
   ggplot(aes(x = log_coef)) + geom_density() +
-  labs(title = "Distribution of log(β^0 ∗ β^1")
+  labs(title = "Distribution of  log(beta0*beta1)")
 ```
 
 ![](p8105_homework6_xd2222_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
